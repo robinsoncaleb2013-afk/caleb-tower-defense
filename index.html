@@ -1,1 +1,991 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Caleb's Tower Defense - See full file in repo releases or re-upload</title></head><body><h1>Loading full game...</h1><p>Please re-open this chat or pull the full index.html from the artifacts. The complete game is built and ready.</p><script>location.href='https://github.com/robinsoncaleb2013-afk/caleb-tower-defense'</script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Caleb's Tower Defense</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0c; font-family: 'Rajdhani', sans-serif; color: #e8e0d0; }
+  #gameCanvas { display: block; width: 100%; height: 100%; background: #0a0a0c; touch-action: none; }
+  #ui { position: absolute; inset: 0; pointer-events: none; }
+  #ui > * { pointer-events: auto; }
+  .menu-screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 30%, #1a1510 0%, #0a0806 60%, #050403 100%); }
+  .menu-screen.hidden { display: none; }
+  .logo { font-family: 'Cinzel', serif; font-size: clamp(2.2rem, 8vw, 4.5rem); font-weight: 900; letter-spacing: 0.15em; text-transform: uppercase; background: linear-gradient(180deg, #f5e6c8 0%, #c9a227 40%, #8b6914 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 40px rgba(201,162,39,0.4); margin-bottom: 0.3em; animation: logoPulse 4s ease-in-out infinite; }
+  @keyframes logoPulse { 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.15)} }
+  .subtitle { font-size: 1.1rem; letter-spacing: 0.4em; color: #a09070; margin-bottom: 2.5rem; text-transform: uppercase; }
+  .menu-btn { width: min(320px, 80vw); padding: 1rem 1.5rem; margin: 0.45rem 0; background: linear-gradient(180deg, rgba(40,30,20,0.9), rgba(20,15,10,0.95)); border: 1px solid #5a4a2a; color: #e8d8b0; font-family: 'Cinzel', serif; font-size: 1.15rem; letter-spacing: 0.12em; cursor: pointer; transition: all 0.25s; position: relative; overflow: hidden; }
+  .menu-btn::before { content:''; position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(201,162,39,0.15),transparent); transform:translateX(-100%); transition:transform 0.4s; }
+  .menu-btn:hover, .menu-btn:active { border-color:#c9a227; color:#f5e6c8; box-shadow:0 0 25px rgba(201,162,39,0.25); transform:scale(1.02); }
+  .menu-btn:hover::before { transform:translateX(100%); }
+  .menu-btn.primary { border-color:#c9a227; background:linear-gradient(180deg,rgba(60,45,20,0.95),rgba(30,22,10,0.98)); }
+  .hud { position:absolute; top:0; left:0; right:0; padding:10px 14px; display:flex; justify-content:space-between; align-items:flex-start; background:linear-gradient(180deg,rgba(0,0,0,0.75),transparent); pointer-events:none; }
+  .hud-left, .hud-right { display:flex; flex-direction:column; gap:4px; }
+  .stat { font-size:0.95rem; letter-spacing:0.05em; }
+  .stat span { color:#c9a227; font-weight:700; }
+  .wave-banner { position:absolute; top:18%; left:50%; transform:translateX(-50%); font-family:'Cinzel',serif; font-size:1.6rem; color:#f5e6c8; text-shadow:0 0 20px #c9a227; opacity:0; transition:opacity 0.4s; pointer-events:none; }
+  .wave-banner.show { opacity:1; }
+  .tower-bar { position:absolute; bottom:0; left:0; right:0; height:90px; background:linear-gradient(0deg,rgba(10,8,5,0.95),rgba(20,15,10,0.85)); border-top:1px solid #4a3a1a; display:flex; align-items:center; padding:8px 10px; gap:8px; overflow-x:auto; }
+  .tower-slot { width:68px; height:72px; flex-shrink:0; background:rgba(30,22,12,0.9); border:2px solid #4a3a1a; border-radius:6px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; transition:all 0.2s; position:relative; }
+  .tower-slot.selected { border-color:#c9a227; box-shadow:0 0 12px rgba(201,162,39,0.5); }
+  .tower-slot.disabled { opacity:0.4; pointer-events:none; }
+  .tower-icon { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.3rem; margin-bottom:2px; }
+  .tower-cost { font-size:0.7rem; color:#c9a227; }
+  .tower-name { font-size:0.65rem; color:#a09070; max-width:60px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .base-hp-bar { position:absolute; bottom:100px; left:50%; transform:translateX(-50%); width:min(280px,70vw); height:14px; background:#1a1008; border:1px solid #5a4a2a; border-radius:7px; overflow:hidden; }
+  .base-hp-fill { height:100%; background:linear-gradient(90deg,#8b0000,#c9a227); transition:width 0.3s; }
+  .mobile-controls { position:absolute; bottom:100px; right:12px; display:none; flex-direction:column; gap:8px; }
+  .mobile-btn { width:56px; height:56px; border-radius:50%; background:rgba(30,22,12,0.85); border:2px solid #5a4a2a; color:#e8d8b0; font-size:1.4rem; display:flex; align-items:center; justify-content:center; }
+  @media (max-width:900px){ .mobile-controls{display:flex;} }
+  .panel { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:min(420px,92vw); max-height:85vh; overflow-y:auto; background:linear-gradient(180deg,#1a1510,#0e0b08); border:1px solid #5a4a2a; border-radius:8px; padding:1.5rem; box-shadow:0 20px 60px rgba(0,0,0,0.8); }
+  .panel h2 { font-family:'Cinzel',serif; color:#c9a227; margin-bottom:1rem; text-align:center; letter-spacing:0.1em; }
+  .panel.hidden { display:none; }
+  .close-btn { position:absolute; top:10px; right:14px; background:none; border:none; color:#a09070; font-size:1.4rem; cursor:pointer; }
+  .team-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin:1rem 0; }
+  .team-slot { aspect-ratio:1; background:#1a120a; border:2px dashed #4a3a1a; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:1.5rem; }
+  .backpack-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(70px,1fr)); gap:8px; max-height:200px; overflow-y:auto; }
+  .bp-item { aspect-ratio:1; background:#1a120a; border:1px solid #4a3a1a; border-radius:6px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; font-size:1.2rem; }
+  .bp-item:hover, .bp-item.selected { border-color:#c9a227; }
+  .settings-row { display:flex; justify-content:space-between; align-items:center; margin:0.8rem 0; padding:0.5rem 0; border-bottom:1px solid #2a2010; }
+  .toggle { width:48px; height:26px; background:#2a2010; border-radius:13px; position:relative; cursor:pointer; }
+  .toggle.on { background:#5a4a2a; }
+  .toggle::after { content:''; position:absolute; width:20px; height:20px; background:#c9a227; border-radius:50%; top:3px; left:3px; transition:left 0.2s; }
+  .toggle.on::after { left:25px; }
+  .pause-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; flex-direction:column; gap:1rem; }
+  .pause-overlay.hidden { display:none; }
+  .win-lose { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:rgba(0,0,0,0.85); }
+  .win-lose.hidden { display:none; }
+  .win-lose h1 { font-family:'Cinzel',serif; font-size:2.8rem; margin-bottom:1rem; }
+  .win-lose.win h1 { color:#c9a227; text-shadow:0 0 30px #c9a227; }
+  .win-lose.lose h1 { color:#c44; }
+  .particle-canvas { position:absolute; inset:0; pointer-events:none; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<div id="ui">
+  <!-- MAIN MENU (RDO style) -->
+  <div id="mainMenu" class="menu-screen">
+    <div class="logo">Caleb's Defense</div>
+    <div class="subtitle">Stand Against the Horde</div>
+    <button class="menu-btn primary" onclick="startStory()">Story Mode</button>
+    <button class="menu-btn" onclick="startSandbox()">Sandbox</button>
+    <button class="menu-btn" onclick="startInfinite()">Infinite</button>
+    <button class="menu-btn" onclick="openMultiplayer()">Multiplayer</button>
+    <button class="menu-btn" onclick="openTeamSelect()">Loadout</button>
+    <button class="menu-btn" onclick="openSettings()">Settings</button>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud" class="hud hidden">
+    <div class="hud-left">
+      <div class="stat">LEVEL <span id="hudLevel">1</span></div>
+      <div class="stat">GOLD <span id="hudGold">100</span></div>
+      <div class="stat">WAVE <span id="hudWave">1</span>/<span id="hudMaxWave">5</span></div>
+    </div>
+    <div class="hud-right">
+      <div class="stat">BASE HP <span id="hudHp">100</span></div>
+      <div class="stat">KILLS <span id="hudKills">0</span></div>
+      <button class="menu-btn" style="width:auto;padding:6px 14px;font-size:0.9rem;margin-top:6px" onclick="togglePause()">PAUSE</button>
+    </div>
+  </div>
+  <div id="waveBanner" class="wave-banner">WAVE 1</div>
+  <div id="baseHpBar" class="base-hp-bar hidden"><div id="baseHpFill" class="base-hp-fill" style="width:100%"></div></div>
+  <div id="towerBar" class="tower-bar hidden"></div>
+  <div class="mobile-controls" id="mobileControls">
+    <button class="mobile-btn" ontouchstart="spawnSelected(event)" onclick="spawnSelected(event)">⚔</button>
+    <button class="mobile-btn" ontouchstart="triggerBomb(event)" onclick="triggerBomb(event)">💣</button>
+  </div>
+
+  <!-- Team / Loadout -->
+  <div id="teamPanel" class="panel hidden">
+    <button class="close-btn" onclick="closePanels()">×</button>
+    <h2>Loadout — Choose 5</h2>
+    <p style="text-align:center;color:#a09070;margin-bottom:0.5rem">Team (tap backpack to add)</p>
+    <div class="team-grid" id="teamGrid"></div>
+    <p style="text-align:center;color:#a09070;margin:1rem 0 0.5rem">Backpack</p>
+    <div class="backpack-grid" id="backpackGrid"></div>
+    <button class="menu-btn primary" style="width:100%;margin-top:1rem" onclick="confirmTeam()">Confirm Team</button>
+  </div>
+
+  <!-- Settings -->
+  <div id="settingsPanel" class="panel hidden">
+    <button class="close-btn" onclick="closePanels()">×</button>
+    <h2>Settings</h2>
+    <div class="settings-row"><span>Music</span><div class="toggle on" id="togMusic" onclick="this.classList.toggle('on')"></div></div>
+    <div class="settings-row"><span>SFX</span><div class="toggle on" id="togSfx" onclick="this.classList.toggle('on')"></div></div>
+    <div class="settings-row"><span>Particles</span><div class="toggle on" id="togParticles" onclick="this.classList.toggle('on')"></div></div>
+    <div class="settings-row"><span>Show Range</span><div class="toggle" id="togRange" onclick="this.classList.toggle('on')"></div></div>
+    <div class="settings-row"><span>Difficulty</span>
+      <select id="diffSelect" style="background:#1a120a;color:#e8d8b0;border:1px solid #5a4a2a;padding:4px 8px">
+        <option value="1">Normal</option>
+        <option value="1.3">Hard</option>
+        <option value="1.6">Nightmare</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Multiplayer -->
+  <div id="mpPanel" class="panel hidden">
+    <button class="close-btn" onclick="closePanels()">×</button>
+    <h2>Multiplayer</h2>
+    <p style="color:#a09070;margin-bottom:1rem;text-align:center">Local co-op: share the screen. Player 1 places towers, Player 2 places troops.</p>
+    <button class="menu-btn primary" style="width:100%" onclick="startLocalCoop()">Start Local Co-op</button>
+    <p style="color:#6a5a40;margin-top:1.5rem;font-size:0.85rem;text-align:center">Online matchmaking coming soon — host on robinsonaisystems.com</p>
+  </div>
+
+  <!-- Pause -->
+  <div id="pauseOverlay" class="pause-overlay hidden">
+    <h2 style="font-family:'Cinzel',serif;color:#c9a227;font-size:2rem">PAUSED</h2>
+    <button class="menu-btn" onclick="togglePause()">Resume</button>
+    <button class="menu-btn" onclick="openBaseUpgrades()">Base Upgrades</button>
+    <button class="menu-btn" onclick="quitToMenu()">Quit to Menu</button>
+  </div>
+
+  <!-- Win / Lose -->
+  <div id="endScreen" class="win-lose hidden">
+    <h1 id="endTitle">VICTORY</h1>
+    <p id="endStats" style="margin-bottom:1.5rem;color:#a09070"></p>
+    <button class="menu-btn primary" onclick="nextLevel()">Next Level</button>
+    <button class="menu-btn" onclick="quitToMenu()">Main Menu</button>
+  </div>
+
+  <!-- Base Upgrades -->
+  <div id="upgradePanel" class="panel hidden">
+    <button class="close-btn" onclick="closePanels()">×</button>
+    <h2>Base Upgrades</h2>
+    <div class="settings-row">
+      <span>Max Health (+25)</span>
+      <button class="menu-btn" style="width:auto;padding:6px 12px" onclick="upgradeBase('hp')">50G</button>
+    </div>
+    <div class="settings-row">
+      <span>Armor (+5% DR)</span>
+      <button class="menu-btn" style="width:auto;padding:6px 12px" onclick="upgradeBase('armor')">80G</button>
+    </div>
+    <div class="settings-row">
+      <span>Self-Defense Bomb (Lv10+)</span>
+      <button class="menu-btn" style="width:auto;padding:6px 12px" id="bombBtn" onclick="upgradeBase('bomb')">200G</button>
+    </div>
+    <p style="color:#6a5a40;font-size:0.8rem;margin-top:1rem">Bomb deals 5 dmg to base but clears enemies in large AoE. Unlocks at Base Level 10.</p>
+  </div>
+</div>
+
+<script>
+// ===================== DATA =====================
+const TOWER_DEFS = [
+  // Towers (projectile) - group A
+  {id:'cannon',name:'Cannon',type:'tower',icon:'💣',color:'#c44',cost:50,dmg:18,range:140,rate:1.1,evol:[1.4,1.9],proj:'shell'},
+  {id:'archer',name:'Archer',type:'tower',icon:'🏹',color:'#4a8',cost:40,dmg:8,range:180,rate:0.45,evol:[1.3,1.7],proj:'arrow'},
+  {id:'mage',name:'Mage',type:'tower',icon:'🔮',color:'#48c',cost:70,dmg:22,range:160,rate:1.4,evol:[1.5,2.1],proj:'bolt'},
+  {id:'sniper',name:'Sniper',type:'tower',icon:'🎯',color:'#888',cost:90,dmg:55,range:280,rate:2.2,evol:[1.4,1.8],proj:'bullet'},
+  {id:'tesla',name:'Tesla',type:'tower',icon:'⚡',color:'#0cf',cost:85,dmg:12,range:120,rate:0.35,evol:[1.3,1.6],proj:'spark',aoe:40},
+  {id:'mortar',name:'Mortar',type:'tower',icon:'💥',color:'#a64',cost:100,dmg:45,range:200,rate:2.5,evol:[1.4,1.9],proj:'bomb',aoe:70},
+  {id:'frost',name:'Frost',type:'tower',icon:'❄️',color:'#8cf',cost:65,dmg:10,range:130,rate:1.0,evol:[1.3,1.7],proj:'ice',slow:0.5},
+  {id:'laser',name:'Laser',type:'tower',icon:'🔴',color:'#f22',cost:110,dmg:8,range:190,rate:0.15,evol:[1.2,1.5],proj:'beam'},
+  {id:'poison',name:'Poison',type:'tower',icon:'☠️',color:'#4a4',cost:75,dmg:6,range:110,rate:0.8,evol:[1.4,1.8],proj:'gas',dot:4},
+  {id:'railgun',name:'Railgun',type:'tower',icon:'🔫',color:'#aac',cost:140,dmg:90,range:320,rate:3.0,evol:[1.3,1.7],proj:'rail'},
+  {id:'flamethrower',name:'Flame',type:'tower',icon:'🔥',color:'#f80',cost:80,dmg:7,range:90,rate:0.12,evol:[1.3,1.6],proj:'fire',aoe:50},
+  {id:'ballista',name:'Ballista',type:'tower',icon:'📌',color:'#864',cost:60,dmg:25,range:170,rate:1.6,evol:[1.4,1.9],proj:'bolt'},
+  // Troops (spawn units that walk right-to-left / toward monsters)
+  {id:'soldier',name:'Soldier',type:'troop',icon:'🪖',color:'#468',cost:35,hp:60,dmg:12,speed:55,rate:2.5,evol:[1.3,1.7]},
+  {id:'knight',name:'Knight',type:'troop',icon:'🛡️',color:'#888',cost:70,hp:140,dmg:18,speed:40,rate:3.5,evol:[1.4,1.8]},
+  {id:'rogue',name:'Rogue',type:'troop',icon:'🗡️',color:'#646',cost:45,hp:40,dmg:28,speed:90,rate:2.0,evol:[1.3,1.6]},
+  {id:'berserker',name:'Berserk',type:'troop',icon:'🪓',color:'#a44',cost:55,hp:80,dmg:22,speed:70,rate:2.8,evol:[1.35,1.75]},
+  {id:'healer',name:'Healer',type:'troop',icon:'💚',color:'#4a6',cost:60,hp:50,dmg:0,speed:45,rate:4.0,evol:[1.2,1.5],heal:8},
+  {id:'tank',name:'Tank',type:'troop',icon:'🛡️',color:'#555',cost:100,hp:280,dmg:10,speed:25,rate:5.0,evol:[1.4,1.9]},
+  {id:'assassin',name:'Assassin',type:'troop',icon:'🥷',color:'#222',cost:80,hp:35,dmg:45,speed:110,rate:3.0,evol:[1.3,1.7]},
+  {id:'mage_troop',name:'Battle Mage',type:'troop',icon:'🧙',color:'#64a',cost:75,hp:55,dmg:20,speed:50,rate:3.2,evol:[1.4,1.8]},
+  {id:'dragonling',name:'Dragonling',type:'troop',icon:'🐉',color:'#c40',cost:120,hp:90,dmg:30,speed:65,rate:4.5,evol:[1.5,2.0]},
+  {id:'golem',name:'Golem',type:'troop',icon:'🗿',color:'#654',cost:95,hp:220,dmg:15,speed:30,rate:4.0,evol:[1.4,1.9]},
+  {id:'archer_troop',name:'Ranger',type:'troop',icon:'🏹',color:'#484',cost:50,hp:45,dmg:14,speed:60,rate:2.2,evol:[1.3,1.6]},
+  {id:'paladin',name:'Paladin',type:'troop',icon:'⚔️',color:'#da4',cost:90,hp:120,dmg:16,speed:48,rate:3.8,evol:[1.35,1.8]},
+];
+
+// Expand to ~50 conceptually by variants (used for RNG unlocks)
+const EXTRA_NAMES = ['Heavy Cannon','Elite Archer','Arcane Mage','Shadow Sniper','Storm Tesla','Siege Mortar','Glacial Frost','Plasma Laser','Venom Spitter','Quantum Rail','Inferno','War Ballista','Veteran','Royal Knight','Nightblade','Fury','Priest','Behemoth','Ghost','Warlock','Wyrm','Titan','Scout','Crusader','Demolisher','Marksman','Cryomancer','Pulse','Acid','Ion','Blaze','Spike','Infantry','Guardian','Stalker','Raider','Medic','Bulwark','Reaper','Sorcerer','Drake','Colossus','Hunter','Templar','Bombard','Longbow','Tempest','Orbital','Plague','Hyperion'];
+while (TOWER_DEFS.length < 50) {
+  const base = TOWER_DEFS[TOWER_DEFS.length % 24];
+  const n = EXTRA_NAMES[TOWER_DEFS.length - 24] || ('Unit '+TOWER_DEFS.length);
+  TOWER_DEFS.push({...base, id: base.id+'_v'+TOWER_DEFS.length, name: n, cost: Math.round(base.cost*1.15)});
+}
+
+const MONSTER_DEFS = [
+  {id:'slime',name:'Slime',icon:'🟢',hp:30,speed:40,dmg:5,gold:8,color:'#4a4'},
+  {id:'goblin',name:'Goblin',icon:'👺',hp:45,speed:55,dmg:8,gold:12,color:'#484'},
+  {id:'skeleton',name:'Skeleton',icon:'💀',hp:55,speed:48,dmg:10,gold:14,color:'#aaa'},
+  {id:'orc',name:'Orc',icon:'👹',hp:90,speed:35,dmg:15,gold:20,color:'#484'},
+  {id:'wolf',name:'Wolf',icon:'🐺',hp:40,speed:85,dmg:12,gold:15,color:'#666'},
+  {id:'bat',name:'Bat',icon:'🦇',hp:25,speed:95,dmg:6,gold:10,color:'#444'},
+  {id:'spider',name:'Spider',icon:'🕷️',hp:50,speed:60,dmg:9,gold:13,color:'#642'},
+  {id:'zombie',name:'Zombie',icon:'🧟',hp:110,speed:28,dmg:14,gold:18,color:'#464'},
+  {id:'imp',name:'Imp',icon:'😈',hp:35,speed:70,dmg:11,gold:16,color:'#a22'},
+  {id:'troll',name:'Troll',icon:'🧌',hp:200,speed:25,dmg:22,gold:35,color:'#484'},
+  {id:'wraith',name:'Wraith',icon:'👻',hp:70,speed:65,dmg:18,gold:25,color:'#88a'},
+  {id:'beetle',name:'Beetle',icon:'🪲',hp:80,speed:40,dmg:12,gold:17,color:'#420'},
+  {id:'harpy',name:'Harpy',icon:'🦅',hp:60,speed:80,dmg:14,gold:22,color:'#864'},
+  {id:'golem_m',name:'Stone Golem',icon:'🪨',hp:280,speed:20,dmg:25,gold:40,color:'#666'},
+  {id:'vampire',name:'Vampire',icon:'🧛',hp:130,speed:55,dmg:20,gold:30,color:'#600'},
+  {id:'lich_minion',name:'Lich Minion',icon:'☠️',hp:95,speed:45,dmg:16,gold:28,color:'#404'},
+  {id:'drake',name:'Drake',icon:'🐲',hp:180,speed:50,dmg:28,gold:45,color:'#c40'},
+  {id:'elemental',name:'Elemental',icon:'🌊',hp:150,speed:40,dmg:24,gold:38,color:'#28a'},
+  {id:'shadow',name:'Shadow',icon:'🌑',hp:85,speed:75,dmg:19,gold:32,color:'#222'},
+  {id:'brute',name:'Brute',icon:'💪',hp:250,speed:30,dmg:30,gold:42,color:'#842'},
+];
+// pad to 75 types with scaled variants
+while (MONSTER_DEFS.length < 75) {
+  const b = MONSTER_DEFS[MONSTER_DEFS.length % 20];
+  MONSTER_DEFS.push({...b, id:b.id+'_'+MONSTER_DEFS.length, name:b.name+' Elite', hp:Math.round(b.hp*1.4), dmg:Math.round(b.dmg*1.3), gold:Math.round(b.gold*1.3)});
+}
+
+const BOSS_DEFS = [];
+const BOSS_NAMES = ['Overlord','Bone King','Infernal Duke','Void Sovereign','Plague Lord','Storm Titan','Iron Colossus','Shadow Empress','Blood Baron','Crystal Tyrant','Abyss Walker','Flame Archon','Frost Monarch','Poison Queen','Thunder God','Death Knight','Chaos Dragon','Ancient Golem','Nightmare','Soul Reaper','Warlord','Demon Prince','Necromancer','Behemoth King','Serpent God','Eclipse','Rift Lord','Ashen One','Tide Bringer','Earthshaker','Sky Scourge','Hellfire','Ice Warden','Venom Sovereign','Arcane Destroyer','Oblivion','Ruin','Cataclysm','Doom','Apocalypse','Leviathan','Phoenix Lord','Hydra King','Minotaur Champion','Final Horror'];
+for (let i=0;i<45;i++){
+  BOSS_DEFS.push({
+    id:'boss_'+i, name:BOSS_NAMES[i]||('Boss '+(i+1)), icon:'👑',
+    hp: 800 + i*180, speed: 22 + (i%5)*3, dmg: 40 + i*4, gold: 200 + i*25,
+    color: `hsl(${(i*37)%360},70%,45%)`, isBoss:true
+  });
+}
+
+// Boss every 3 levels: level 3,6,9... → 45 bosses across 135 levels
+function bossForLevel(level){
+  if (level % 3 !== 0) return null;
+  const idx = Math.min(44, Math.floor(level/3)-1);
+  return BOSS_DEFS[idx];
+}
+
+// ===================== STATE =====================
+const state = {
+  screen: 'menu', // menu, playing, pause, end
+  mode: 'story', // story, sandbox, infinite, coop
+  level: 1,
+  gold: 120,
+  baseHp: 100,
+  baseMaxHp: 100,
+  baseArmor: 0,
+  baseLevel: 1,
+  bombUnlocked: false,
+  bombReady: true,
+  kills: 0,
+  wave: 0,
+  maxWaves: 5,
+  difficulty: 1,
+  selectedTower: null,
+  towers: [],      // placed towers
+  troops: [],      // player units
+  monsters: [],
+  projectiles: [],
+  particles: [],
+  backpack: ['cannon','archer','soldier','knight','mage','rogue','frost','tesla'], // starting unlocks
+  team: ['cannon','archer','soldier','knight','mage'],
+  lastSpawn: 0,
+  waveTimer: 0,
+  spawning: false,
+  gameTime: 0,
+  path: [], // enemy path points
+  canvasW: 0, canvasH: 0,
+  cameraY: 0,
+  spinAngle: 0,
+  coop: false,
+  playerTurn: 1,
+};
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let animId = null;
+let lastTime = 0;
+
+// ===================== INIT =====================
+function resize(){
+  canvas.width = window.innerWidth * devicePixelRatio;
+  canvas.height = window.innerHeight * devicePixelRatio;
+  canvas.style.width = window.innerWidth+'px';
+  canvas.style.height = window.innerHeight+'px';
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  state.canvasW = window.innerWidth;
+  state.canvasH = window.innerHeight;
+  buildPath();
+}
+window.addEventListener('resize', resize);
+resize();
+
+function buildPath(){
+  // S-shaped path from right to left (monsters come from right)
+  const w = state.canvasW, h = state.canvasH;
+  const midY = h * 0.45;
+  state.path = [
+    {x: w+40, y: midY-60},
+    {x: w*0.85, y: midY-80},
+    {x: w*0.7, y: midY+40},
+    {x: w*0.55, y: midY-50},
+    {x: w*0.4, y: midY+70},
+    {x: w*0.25, y: midY-30},
+    {x: w*0.12, y: midY+20},
+    {x: 40, y: midY}, // base
+  ];
+}
+
+// ===================== MENU =====================
+function startStory(){ state.mode='story'; state.level=1; beginLevel(); }
+function startSandbox(){ state.mode='sandbox'; state.level=1; state.gold=9999; beginLevel(); }
+function startInfinite(){ state.mode='infinite'; state.level=1; beginLevel(); }
+function startLocalCoop(){ state.mode='coop'; state.coop=true; state.level=1; closePanels(); beginLevel(); }
+
+function beginLevel(){
+  closePanels();
+  document.getElementById('mainMenu').classList.add('hidden');
+  document.getElementById('hud').classList.remove('hidden');
+  document.getElementById('towerBar').classList.remove('hidden');
+  document.getElementById('baseHpBar').classList.remove('hidden');
+  document.getElementById('endScreen').classList.add('hidden');
+  state.screen = 'playing';
+  state.gold = state.mode==='sandbox' ? 9999 : 100 + state.level*15;
+  state.baseHp = state.baseMaxHp;
+  state.kills = 0;
+  state.wave = 0;
+  state.maxWaves = state.mode==='infinite' ? 999 : 4 + Math.floor(state.level/5);
+  state.towers = [];
+  state.troops = [];
+  state.monsters = [];
+  state.projectiles = [];
+  state.particles = [];
+  state.spawning = false;
+  state.waveTimer = 2;
+  state.bombReady = true;
+  buildPath();
+  renderTowerBar();
+  updateHud();
+  if (!animId) requestAnimationFrame(loop);
+  showWaveBanner('LEVEL '+state.level);
+}
+
+function quitToMenu(){
+  state.screen = 'menu';
+  document.getElementById('mainMenu').classList.remove('hidden');
+  document.getElementById('hud').classList.add('hidden');
+  document.getElementById('towerBar').classList.add('hidden');
+  document.getElementById('baseHpBar').classList.add('hidden');
+  document.getElementById('pauseOverlay').classList.add('hidden');
+  document.getElementById('endScreen').classList.add('hidden');
+  closePanels();
+}
+
+function togglePause(){
+  if (state.screen==='playing'){
+    state.screen='pause';
+    document.getElementById('pauseOverlay').classList.remove('hidden');
+  } else if (state.screen==='pause'){
+    state.screen='playing';
+    document.getElementById('pauseOverlay').classList.add('hidden');
+    closePanels();
+  }
+}
+
+function openTeamSelect(){ closePanels(); document.getElementById('teamPanel').classList.remove('hidden'); renderTeamUI(); }
+function openSettings(){ closePanels(); document.getElementById('settingsPanel').classList.remove('hidden'); }
+function openMultiplayer(){ closePanels(); document.getElementById('mpPanel').classList.remove('hidden'); }
+function openBaseUpgrades(){ closePanels(); document.getElementById('upgradePanel').classList.remove('hidden'); document.getElementById('bombBtn').disabled = state.baseLevel<10; }
+function closePanels(){
+  ['teamPanel','settingsPanel','mpPanel','upgradePanel'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+}
+
+function renderTeamUI(){
+  const tg = document.getElementById('teamGrid');
+  tg.innerHTML = '';
+  for (let i=0;i<5;i++){
+    const id = state.team[i];
+    const def = TOWER_DEFS.find(t=>t.id===id);
+    const div = document.createElement('div');
+    div.className = 'team-slot';
+    div.textContent = def ? def.icon : '+';
+    div.onclick = ()=>{ if(state.team[i]){ state.team.splice(i,1); renderTeamUI(); } };
+    tg.appendChild(div);
+  }
+  const bg = document.getElementById('backpackGrid');
+  bg.innerHTML = '';
+  const unique = [...new Set(state.backpack)];
+  unique.forEach(id=>{
+    const def = TOWER_DEFS.find(t=>t.id===id);
+    if (!def) return;
+    const div = document.createElement('div');
+    div.className = 'bp-item'+(state.team.includes(id)?' selected':'');
+    div.innerHTML = `<div>${def.icon}</div><div style="font-size:0.55rem">${def.name}</div>`;
+    div.onclick = ()=>{
+      if (state.team.includes(id)) return;
+      if (state.team.length>=5) state.team.shift();
+      state.team.push(id);
+      renderTeamUI();
+    };
+    bg.appendChild(div);
+  });
+}
+function confirmTeam(){ if(state.team.length===5) closePanels(); else alert('Select exactly 5 towers/troops'); }
+
+function upgradeBase(type){
+  if (type==='hp' && state.gold>=50){ state.gold-=50; state.baseMaxHp+=25; state.baseHp+=25; state.baseLevel++; }
+  else if (type==='armor' && state.gold>=80){ state.gold-=80; state.baseArmor+=0.05; state.baseLevel++; }
+  else if (type==='bomb' && state.baseLevel>=10 && state.gold>=200 && !state.bombUnlocked){ state.gold-=200; state.bombUnlocked=true; }
+  updateHud();
+}
+
+function nextLevel(){
+  if (state.mode==='story'){
+    state.level = Math.min(135, state.level+1);
+    // RNG unlock chance
+    if (Math.random()<0.35){
+      const locked = TOWER_DEFS.filter(t=>!state.backpack.includes(t.id));
+      if (locked.length){
+        const pick = locked[Math.floor(Math.random()*locked.length)];
+        state.backpack.push(pick.id);
+        // remove any accidental dups
+        state.backpack = [...new Set(state.backpack)];
+        showWaveBanner('UNLOCKED: '+pick.name);
+      }
+    }
+  } else if (state.mode==='infinite'){
+    state.level++;
+  }
+  beginLevel();
+}
+
+// ===================== TOWER BAR =====================
+function renderTowerBar(){
+  const bar = document.getElementById('towerBar');
+  bar.innerHTML = '';
+  state.team.forEach(id=>{
+    const def = TOWER_DEFS.find(t=>t.id===id);
+    if (!def) return;
+    const slot = document.createElement('div');
+    slot.className = 'tower-slot'+(state.selectedTower===id?' selected':'')+(state.gold<def.cost?' disabled':'');
+    slot.innerHTML = `<div class="tower-icon" style="background:${def.color}33;border:2px solid ${def.color}">${def.icon}</div>
+      <div class="tower-name">${def.name}</div><div class="tower-cost">${def.cost}G</div>`;
+    slot.onclick = ()=>{ state.selectedTower = state.selectedTower===id ? null : id; renderTowerBar(); };
+    bar.appendChild(slot);
+  });
+}
+
+function updateHud(){
+  document.getElementById('hudLevel').textContent = state.level;
+  document.getElementById('hudGold').textContent = state.gold;
+  document.getElementById('hudWave').textContent = state.wave;
+  document.getElementById('hudMaxWave').textContent = state.maxWaves;
+  document.getElementById('hudHp').textContent = Math.ceil(state.baseHp);
+  document.getElementById('hudKills').textContent = state.kills;
+  document.getElementById('baseHpFill').style.width = (state.baseHp/state.baseMaxHp*100)+'%';
+  renderTowerBar();
+}
+
+function showWaveBanner(txt){
+  const el = document.getElementById('waveBanner');
+  el.textContent = txt;
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 2200);
+}
+
+// ===================== INPUT =====================
+canvas.addEventListener('pointerdown', e=>{
+  if (state.screen!=='playing') return;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  // place selected
+  if (state.selectedTower){
+    placeUnit(x,y);
+  }
+});
+
+function placeUnit(x,y){
+  const def = TOWER_DEFS.find(t=>t.id===state.selectedTower);
+  if (!def || state.gold < def.cost) return;
+  // keep away from path a bit
+  if (y > state.canvasH - 110) return;
+  state.gold -= def.cost;
+  if (def.type==='tower'){
+    state.towers.push({
+      id: def.id, x, y, def, stage:0, angle:0, cooldown:0, kills:0
+    });
+  } else {
+    // troops spawn near left (base) and march toward enemies
+    state.troops.push({
+      id: def.id, x: 80 + Math.random()*40, y: state.path[state.path.length-1].y + (Math.random()-0.5)*40,
+      def, stage:0, hp: def.hp, maxHp: def.hp, cooldown:0, target:null
+    });
+  }
+  // spin particle burst
+  for (let i=0;i<12;i++) spawnParticle(x,y, def.color);
+  updateHud();
+}
+
+function spawnSelected(e){ e.preventDefault(); if(state.selectedTower) placeUnit(state.canvasW*0.3, state.canvasH*0.4); }
+function triggerBomb(e){
+  e.preventDefault();
+  if (!state.bombUnlocked || !state.bombReady || state.screen!=='playing') return;
+  state.bombReady = false;
+  state.baseHp = Math.max(1, state.baseHp - 5);
+  // AoE clear
+  const cx = 60, cy = state.path[state.path.length-1].y;
+  state.monsters = state.monsters.filter(m=>{
+    const d = Math.hypot(m.x-cx, m.y-cy);
+    if (d < 220){
+      for(let i=0;i<8;i++) spawnParticle(m.x,m.y,'#f80');
+      state.kills++;
+      state.gold += Math.floor(m.gold*0.5);
+      return false;
+    }
+    return true;
+  });
+  // big explosion particles
+  for(let i=0;i<40;i++) spawnParticle(cx,cy,'#f50');
+  updateHud();
+  setTimeout(()=>state.bombReady=true, 15000);
+}
+
+// ===================== GAME LOOP =====================
+function loop(ts){
+  const dt = Math.min(0.05, (ts - lastTime)/1000 || 0.016);
+  lastTime = ts;
+  state.spinAngle += dt * 2;
+  if (state.screen==='playing'){
+    update(dt);
+  }
+  draw();
+  animId = requestAnimationFrame(loop);
+}
+
+function update(dt){
+  state.gameTime += dt;
+  state.difficulty = parseFloat(document.getElementById('diffSelect').value) || 1;
+
+  // waves
+  if (!state.spawning && state.monsters.length===0){
+    state.waveTimer -= dt;
+    if (state.waveTimer <= 0){
+      if (state.wave >= state.maxWaves){
+        // level complete
+        endLevel(true);
+        return;
+      }
+      state.wave++;
+      startWave();
+    }
+  }
+
+  // spawn monsters during wave
+  if (state.spawning){
+    state.spawnTimer = (state.spawnTimer||0) - dt;
+    if (state.spawnTimer <= 0 && state.spawnQueue && state.spawnQueue.length){
+      const mdef = state.spawnQueue.shift();
+      spawnMonster(mdef);
+      state.spawnTimer = 0.6 + Math.random()*0.4;
+    }
+    if (state.spawnQueue && state.spawnQueue.length===0) state.spawning = false;
+  }
+
+  // update monsters
+  for (let i=state.monsters.length-1;i>=0;i--){
+    const m = state.monsters[i];
+    m.progress += m.speed * dt / 600;
+    if (m.progress >= 1){
+      // hit base
+      const dmg = m.dmg * (1 - state.baseArmor) * state.difficulty;
+      state.baseHp -= dmg;
+      spawnParticle(state.path[state.path.length-1].x, state.path[state.path.length-1].y, '#f44');
+      state.monsters.splice(i,1);
+      updateHud();
+      if (state.baseHp <= 0){ endLevel(false); return; }
+      continue;
+    }
+    // follow path
+    const p = pathPoint(m.progress);
+    m.x = p.x; m.y = p.y;
+    if (m.slowTimer > 0){ m.slowTimer -= dt; m.speed = m.baseSpeed * 0.5; }
+    else m.speed = m.baseSpeed;
+    if (m.dotTimer > 0){ m.dotTimer -= dt; m.hp -= (m.dotDmg||0)*dt; if(m.hp<=0) killMonster(i); }
+  }
+
+  // towers shoot
+  state.towers.forEach(t=>{
+    t.angle += dt * 1.5; // spinning animation
+    t.cooldown -= dt;
+    if (t.cooldown > 0) return;
+    const range = t.def.range * (1 + t.stage*0.12);
+    let best = null, bestD = range;
+    state.monsters.forEach(m=>{
+      const d = Math.hypot(m.x-t.x, m.y-t.y);
+      if (d < bestD){ bestD=d; best=m; }
+    });
+    if (best){
+      const mult = t.def.evol[t.stage] || 1;
+      fireProjectile(t, best, mult);
+      t.cooldown = t.def.rate / (1 + t.stage*0.15);
+    }
+  });
+
+  // troops AI
+  state.troops.forEach(tr=>{
+    tr.cooldown -= dt;
+    // find nearest monster
+    let best=null, bestD=9999;
+    state.monsters.forEach(m=>{
+      const d = Math.hypot(m.x-tr.x, m.y-tr.y);
+      if (d<bestD){ bestD=d; best=m; }
+    });
+    if (best && bestD < 40){
+      // attack
+      if (tr.cooldown<=0){
+        const mult = tr.def.evol[tr.stage]||1;
+        best.hp -= tr.def.dmg * mult;
+        spawnParticle(best.x, best.y, tr.def.color);
+        tr.cooldown = 0.6;
+        if (best.hp<=0){
+          const idx = state.monsters.indexOf(best);
+          if (idx>=0) killMonster(idx);
+        }
+      }
+    } else if (best){
+      // move toward
+      const ang = Math.atan2(best.y-tr.y, best.x-tr.x);
+      const spd = tr.def.speed * (1+tr.stage*0.1);
+      tr.x += Math.cos(ang)*spd*dt;
+      tr.y += Math.sin(ang)*spd*dt;
+    } else {
+      // march right slowly
+      tr.x += tr.def.speed * 0.3 * dt;
+    }
+    // heal aura
+    if (tr.def.heal){
+      state.troops.forEach(o=>{
+        if (o!==tr && Math.hypot(o.x-tr.x,o.y-tr.y)<80) o.hp = Math.min(o.maxHp, o.hp + tr.def.heal*dt);
+      });
+    }
+  });
+
+  // projectiles
+  for (let i=state.projectiles.length-1;i>=0;i--){
+    const p = state.projectiles[i];
+    p.life -= dt;
+    if (p.target && p.target.hp>0){
+      const dx = p.target.x - p.x, dy = p.target.y - p.y;
+      const dist = Math.hypot(dx,dy);
+      if (dist < 12){
+        hitProjectile(p);
+        state.projectiles.splice(i,1);
+        continue;
+      }
+      p.x += (dx/dist) * p.speed * dt;
+      p.y += (dy/dist) * p.speed * dt;
+    } else {
+      p.x += Math.cos(p.angle)*p.speed*dt;
+      p.y += Math.sin(p.angle)*p.speed*dt;
+      if (p.life<=0) state.projectiles.splice(i,1);
+    }
+  }
+
+  // particles
+  for (let i=state.particles.length-1;i>=0;i--){
+    const p = state.particles[i];
+    p.life -= dt;
+    p.x += p.vx*dt; p.y += p.vy*dt;
+    p.vy += 30*dt;
+    if (p.life<=0) state.particles.splice(i,1);
+  }
+}
+
+function pathPoint(t){
+  const pts = state.path;
+  const n = pts.length-1;
+  const f = t * n;
+  const i = Math.min(n-1, Math.floor(f));
+  const frac = f - i;
+  return {
+    x: pts[i].x + (pts[i+1].x-pts[i].x)*frac,
+    y: pts[i].y + (pts[i+1].y-pts[i].y)*frac
+  };
+}
+
+function startWave(){
+  state.spawning = true;
+  state.spawnQueue = [];
+  const count = 6 + state.wave*2 + Math.floor(state.level*0.8);
+  const pool = MONSTER_DEFS.slice(0, Math.min(20, 5+Math.floor(state.level/3)));
+  for (let i=0;i<count;i++){
+    const m = pool[Math.floor(Math.random()*pool.length)];
+    state.spawnQueue.push({...m, hp: Math.round(m.hp * (1+state.level*0.08) * state.difficulty)});
+  }
+  // boss?
+  const boss = bossForLevel(state.level);
+  if (boss && state.wave === state.maxWaves){
+    state.spawnQueue.push({...boss, hp: Math.round(boss.hp * state.difficulty)});
+    showWaveBanner('BOSS: '+boss.name);
+  } else {
+    showWaveBanner('WAVE '+state.wave);
+  }
+  state.spawnTimer = 0.5;
+}
+
+function spawnMonster(def){
+  const start = state.path[0];
+  state.monsters.push({
+    ...def,
+    x: start.x, y: start.y,
+    progress: 0,
+    baseSpeed: def.speed,
+    speed: def.speed,
+    maxHp: def.hp,
+    slowTimer:0, dotTimer:0, dotDmg:0
+  });
+}
+
+function killMonster(i){
+  const m = state.monsters[i];
+  state.gold += m.gold || 10;
+  state.kills++;
+  for(let k=0;k<10;k++) spawnParticle(m.x,m.y,m.color||'#c9a227');
+  state.monsters.splice(i,1);
+  updateHud();
+}
+
+function fireProjectile(tower, target, mult){
+  const def = tower.def;
+  state.projectiles.push({
+    x: tower.x, y: tower.y,
+    target, speed: 320 + (def.proj==='rail'?200:0),
+    dmg: def.dmg * mult,
+    color: def.color,
+    aoe: def.aoe||0,
+    slow: def.slow||0,
+    dot: def.dot||0,
+    type: def.proj||'shell',
+    life: 2,
+    angle: Math.atan2(target.y-tower.y, target.x-tower.x)
+  });
+}
+
+function hitProjectile(p){
+  if (!p.target) return;
+  p.target.hp -= p.dmg;
+  if (p.slow) p.target.slowTimer = 1.5;
+  if (p.dot){ p.target.dotTimer=3; p.target.dotDmg=p.dot; }
+  spawnParticle(p.target.x, p.target.y, p.color);
+  if (p.aoe){
+    state.monsters.forEach(m=>{
+      if (m!==p.target && Math.hypot(m.x-p.target.x,m.y-p.target.y)<p.aoe){
+        m.hp -= p.dmg*0.5;
+      }
+    });
+  }
+  if (p.target.hp<=0){
+    const idx = state.monsters.indexOf(p.target);
+    if (idx>=0) killMonster(idx);
+  }
+}
+
+function spawnParticle(x,y,color){
+  if (!document.getElementById('togParticles').classList.contains('on')) return;
+  state.particles.push({
+    x,y, vx:(Math.random()-0.5)*120, vy:(Math.random()-0.5)*120-40,
+    life: 0.4+Math.random()*0.5, maxLife:0.8, color, size:2+Math.random()*4
+  });
+}
+
+function endLevel(won){
+  state.screen = 'end';
+  const el = document.getElementById('endScreen');
+  el.classList.remove('hidden');
+  el.className = 'win-lose '+(won?'win':'lose');
+  document.getElementById('endTitle').textContent = won ? 'VICTORY' : 'DEFEATED';
+  document.getElementById('endStats').textContent = `Kills: ${state.kills}  •  Gold left: ${state.gold}  •  Level ${state.level}`;
+  if (!won) document.querySelector('#endScreen .menu-btn.primary').style.display='none';
+  else document.querySelector('#endScreen .menu-btn.primary').style.display='block';
+}
+
+// ===================== DRAW =====================
+function draw(){
+  const w = state.canvasW, h = state.canvasH;
+  // background
+  const grd = ctx.createRadialGradient(w*0.5, h*0.3, 0, w*0.5, h*0.5, w*0.8);
+  grd.addColorStop(0, '#1a120a');
+  grd.addColorStop(0.5, '#0e0a06');
+  grd.addColorStop(1, '#050403');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0,0,w,h);
+
+  // subtle grid
+  ctx.strokeStyle = 'rgba(80,60,30,0.08)';
+  ctx.lineWidth = 1;
+  for (let x=0;x<w;x+=60){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+  for (let y=0;y<h;y+=60){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+
+  if (state.screen==='menu'){
+    // ambient particles on menu
+    return;
+  }
+
+  // path
+  ctx.strokeStyle = 'rgba(100,80,40,0.35)';
+  ctx.lineWidth = 28;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  state.path.forEach((p,i)=>{ if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(180,150,80,0.15)';
+  ctx.lineWidth = 18;
+  ctx.stroke();
+
+  // base
+  const base = state.path[state.path.length-1];
+  ctx.save();
+  ctx.translate(base.x, base.y);
+  // glowing base
+  const bg = ctx.createRadialGradient(0,0,10,0,0,50);
+  bg.addColorStop(0, 'rgba(201,162,39,0.4)');
+  bg.addColorStop(1, 'transparent');
+  ctx.fillStyle = bg;
+  ctx.beginPath(); ctx.arc(0,0,50,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#2a1e10';
+  ctx.strokeStyle = '#c9a227';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(-25,-20); ctx.lineTo(25,-20); ctx.lineTo(30,15); ctx.lineTo(-30,15); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#c9a227';
+  ctx.font = 'bold 14px Cinzel';
+  ctx.textAlign = 'center';
+  ctx.fillText('BASE', 0, 5);
+  ctx.restore();
+
+  // towers
+  state.towers.forEach(t=>{
+    ctx.save();
+    ctx.translate(t.x, t.y);
+    // range if selected
+    if (document.getElementById('togRange').classList.contains('on') || state.selectedTower===t.id){
+      ctx.strokeStyle = 'rgba(201,162,39,0.2)';
+      ctx.beginPath(); ctx.arc(0,0, t.def.range*(1+t.stage*0.12), 0, Math.PI*2); ctx.stroke();
+    }
+    // spinning platform
+    ctx.rotate(t.angle);
+    ctx.fillStyle = t.def.color + '44';
+    ctx.strokeStyle = t.def.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0,0, 18+t.stage*3, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    // inner spin
+    ctx.rotate(-t.angle*2);
+    ctx.fillStyle = t.def.color;
+    ctx.beginPath(); ctx.arc(0,0, 8, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+    // icon
+    ctx.font = '20px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(t.def.icon, t.x, t.y);
+    // stage stars
+    if (t.stage>0){
+      ctx.fillStyle = '#c9a227';
+      ctx.font = '10px sans-serif';
+      ctx.fillText('★'.repeat(t.stage+1), t.x, t.y+22);
+    }
+  });
+
+  // troops
+  state.troops.forEach(tr=>{
+    ctx.save();
+    ctx.translate(tr.x, tr.y);
+    ctx.fillStyle = tr.def.color + '88';
+    ctx.beginPath(); ctx.arc(0,0,12,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = tr.def.color; ctx.lineWidth=2;
+    ctx.stroke();
+    ctx.font = '16px serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(tr.def.icon, 0, 0);
+    // hp bar
+    ctx.fillStyle = '#300';
+    ctx.fillRect(-12,-18,24,4);
+    ctx.fillStyle = '#4c4';
+    ctx.fillRect(-12,-18,24*(tr.hp/tr.maxHp),4);
+    ctx.restore();
+  });
+
+  // monsters
+  state.monsters.forEach(m=>{
+    ctx.save();
+    ctx.translate(m.x, m.y);
+    const scale = m.isBoss ? 1.6 : 1;
+    ctx.scale(scale,scale);
+    if (m.isBoss){
+      const g = ctx.createRadialGradient(0,0,5,0,0,30);
+      g.addColorStop(0, m.color+'aa');
+      g.addColorStop(1,'transparent');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(0,0,30,0,Math.PI*2); ctx.fill();
+    }
+    ctx.fillStyle = (m.color||'#666')+'99';
+    ctx.beginPath(); ctx.arc(0,0, 11, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = m.color||'#888'; ctx.lineWidth=2; ctx.stroke();
+    ctx.font = (m.isBoss?22:16)+'px serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(m.icon||'👾', 0, 0);
+    // hp
+    ctx.fillStyle='#300';
+    ctx.fillRect(-14,-20,28,4);
+    ctx.fillStyle = m.isBoss ? '#c9a227' : '#c44';
+    ctx.fillRect(-14,-20,28*(m.hp/m.maxHp),4);
+    if (m.isBoss){
+      ctx.fillStyle='#c9a227';
+      ctx.font='10px Cinzel';
+      ctx.fillText(m.name,0,-28);
+    }
+    ctx.restore();
+  });
+
+  // projectiles
+  state.projectiles.forEach(p=>{
+    ctx.save();
+    ctx.translate(p.x,p.y);
+    ctx.fillStyle = p.color;
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 12;
+    if (p.type==='beam'){
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-20,0); ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.arc(0,0, 4+(p.aoe?2:0), 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  });
+
+  // particles
+  state.particles.forEach(p=>{
+    ctx.globalAlpha = p.life / p.maxLife;
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  });
+
+  // evolve hint: click tower when gold enough? simple auto-evolve on kill milestones later
+}
+
+// double-click / long-press to evolve (simple)
+canvas.addEventListener('dblclick', e=>{
+  if (state.screen!=='playing') return;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX-rect.left, y = e.clientY-rect.top;
+  state.towers.forEach(t=>{
+    if (Math.hypot(t.x-x,t.y-y)<25 && t.stage<2 && state.gold >= 40*(t.stage+1)){
+      state.gold -= 40*(t.stage+1);
+      t.stage++;
+      for(let i=0;i<15;i++) spawnParticle(t.x,t.y,'#c9a227');
+      updateHud();
+    }
+  });
+});
+
+// start
+updateHud();
+</script>
+</body>
+</html>
